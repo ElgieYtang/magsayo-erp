@@ -12,10 +12,10 @@ import {
 } from '@/components/ui/table'
 import {
   AlertCircle,
+  ClipboardList,
   FileText,
   Package,
   ShoppingCart,
-  Truck,
 } from 'lucide-react'
 
 const stats = [
@@ -32,16 +32,16 @@ const stats = [
     icon: ShoppingCart,
   },
   {
-    label: 'Pending Receiving',
-    value: '4',
-    change: '2 due today',
-    icon: Package,
+    label: 'Pending Outslips',
+    value: '2',
+    change: 'Awaiting release',
+    icon: ClipboardList,
   },
   {
-    label: 'Pending Deliveries',
-    value: '3',
-    change: '1 overdue',
-    icon: Truck,
+    label: 'Inventory items',
+    value: '2',
+    change: 'See Inventory & Reports',
+    icon: Package,
   },
 ]
 
@@ -54,18 +54,18 @@ const recentTransactions = [
     status: 'pending' as const,
   },
   {
-    id: 'PO-00001',
+    id: 'PO-000123',
     type: 'Purchase Order',
     customer: 'ABC Corporation',
     amount: '₱400,000',
     status: 'approved' as const,
   },
   {
-    id: 'DR-00001',
-    type: 'Delivery Receipt',
+    id: 'OS-000123',
+    type: 'Outslip',
     customer: 'ABC Corporation',
     amount: '—',
-    status: 'approved' as const,
+    status: 'draft' as const,
   },
   {
     id: 'QTN-00002',
@@ -77,9 +77,9 @@ const recentTransactions = [
 ]
 
 const needsAttention = [
-  '5 quotations pending approval',
-  '3 deliveries pending confirmation',
-  '7 billing records awaiting release',
+  'Approved PO-000123 is ready for Create Outslip',
+  'Release outslips to post inventory records',
+  'Create Delivery Receipt after Inventory & Reports',
 ]
 
 const statusBadge = {

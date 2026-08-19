@@ -6,6 +6,7 @@ type BadgeVariant =
   | 'pending'
   | 'rejected'
   | 'draft'
+  | 'released'
   | 'current'
   | 'default'
 
@@ -18,6 +19,7 @@ const variantStyles: Record<BadgeVariant, string> = {
   pending: 'bg-[#FEF3C7] text-[#B45309]',
   rejected: 'bg-[#FEE2E2] text-[#DC2626]',
   draft: 'bg-draft text-text-secondary',
+  released: 'bg-[#DBEAFE] text-[#1D4ED8]',
   current: 'bg-maroon-light text-maroon',
   default: 'bg-draft text-text-secondary',
 }

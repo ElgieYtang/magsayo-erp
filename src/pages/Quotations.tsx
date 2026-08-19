@@ -13,6 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { WorkflowTracker } from '@/components/workflow/WorkflowTracker'
+import { workflowStages } from '@/config/workflow'
 import { Plus } from 'lucide-react'
 
 const quotations = [
@@ -37,17 +38,6 @@ const quotations = [
     amount: '₱180,000',
     status: 'draft' as const,
   },
-]
-
-const workflowStages = [
-  { label: 'Quotation', status: 'current' as const },
-  { label: 'Purchase Order', status: 'future' as const },
-  { label: 'Receiving', status: 'future' as const },
-  { label: 'Inventory', status: 'future' as const },
-  { label: 'Outslip', status: 'future' as const },
-  { label: 'Delivery Receipt', status: 'future' as const },
-  { label: 'Billing', status: 'future' as const },
-  { label: 'SOA', status: 'future' as const },
 ]
 
 const statusBadge = {
@@ -113,7 +103,7 @@ export function QuotationsPage() {
             <CardTitle>Workflow Progress</CardTitle>
           </CardHeader>
           <CardContent>
-            <WorkflowTracker stages={workflowStages} />
+            <WorkflowTracker stages={workflowStages('Quotation')} />
           </CardContent>
         </Card>
       </div>

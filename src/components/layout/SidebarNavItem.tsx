@@ -7,6 +7,7 @@ interface SidebarNavItemProps {
   label: string
   icon?: LucideIcon
   indent?: boolean
+  nested?: boolean
   end?: boolean
 }
 
@@ -15,6 +16,7 @@ export function SidebarNavItem({
   label,
   icon: Icon,
   indent = false,
+  nested = false,
   end = false,
 }: SidebarNavItemProps) {
   return (
@@ -25,6 +27,7 @@ export function SidebarNavItem({
         cn(
           'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150',
           indent && 'ml-4',
+          nested && 'ml-8',
           isActive
             ? 'mx-2 bg-maroon-light text-maroon'
             : 'text-white/85 hover:bg-maroon-dark hover:text-white',

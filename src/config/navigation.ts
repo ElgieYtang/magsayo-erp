@@ -1,15 +1,19 @@
 import {
+  Archive,
   BarChart3,
   Box,
   Building2,
-  CreditCard,
+  ClipboardList,
   FileText,
+  FolderKanban,
   Home,
+  Layers,
   Package,
-  Receipt,
-  Settings,
+  Ruler,
   ShoppingCart,
+  Tag,
   Truck,
+  User,
   Users,
   type LucideIcon,
 } from 'lucide-react'
@@ -18,6 +22,7 @@ export interface NavItem {
   label: string
   path: string
   icon?: LucideIcon
+  children?: NavItem[]
 }
 
 export interface NavGroup {
@@ -41,37 +46,30 @@ export const navigation: NavSection[] = [
     items: [
       { label: 'Quotations', path: '/quotations', icon: FileText },
       { label: 'Purchase Orders', path: '/purchase-orders', icon: ShoppingCart },
+      { label: 'Outslips', path: '/outslips', icon: ClipboardList },
       { label: 'Delivery Receipts', path: '/delivery-receipts', icon: Truck },
-      { label: 'Billing', path: '/billing', icon: CreditCard },
-      { label: 'SOA', path: '/soa', icon: Receipt },
-    ],
-    groups: [
-      {
-        label: 'Inventory',
-        icon: Package,
-        children: [
-          { label: 'Overview', path: '/inventory' },
-          { label: 'Receiving', path: '/inventory/receiving' },
-          { label: 'Outslips', path: '/inventory/outslips' },
-        ],
-      },
+      { label: 'Accomplishments', path: '/accomplishments', icon: BarChart3 },
     ],
   },
   {
-    heading: 'MASTER DATA',
+    heading: 'SETUPS',
     items: [
-      { label: 'Customers', path: '/customers', icon: Users },
-      { label: 'Suppliers', path: '/suppliers', icon: Building2 },
-      { label: 'Products', path: '/products', icon: Box },
+      { label: 'User', path: '/setup/users', icon: User },
+      { label: 'Company', path: '/setup/company', icon: Building2 },
+      { label: 'Branch', path: '/setup/branch', icon: Building2 },
+      { label: 'Project', path: '/setup/project', icon: FolderKanban },
+      { label: 'Position', path: '/setup/position', icon: Users },
+      { label: 'Category', path: '/setup/category', icon: Layers },
+      { label: 'Brand', path: '/setup/brand', icon: Tag },
+      { label: 'Model', path: '/setup/model', icon: Box },
+      { label: 'Unit of Measure', path: '/setup/uom', icon: Ruler },
+      { label: 'Items', path: '/setup/items', icon: Archive },
+      { label: 'Suppliers', path: '/setup/suppliers', icon: Building2 },
+      { label: 'Customers', path: '/setup/customers', icon: Users },
     ],
   },
   {
     heading: 'REPORTS',
-    items: [
-      { label: 'Accomplishment', path: '/reports/accomplishment', icon: BarChart3 },
-    ],
-  },
-  {
-    items: [{ label: 'Settings', path: '/settings', icon: Settings }],
+    items: [{ label: 'Inventory', path: '/inventory', icon: Package }],
   },
 ]
