@@ -11,8 +11,6 @@ import {
   TableLink,
   TableRow,
 } from '@/components/ui/table'
-import { WorkflowTracker } from '@/components/workflow/WorkflowTracker'
-import { workflowStages } from '@/config/workflow'
 import { getStockLevels, useErp } from '@/data/erpStore'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -83,8 +81,8 @@ export function InventoryReportsPage() {
         </Card>
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      <div className="mb-6">
+        <div>
           <h2 className="mb-3 text-base font-semibold text-text-primary">Current stock</h2>
           <Table>
             <TableHeader>
@@ -107,12 +105,6 @@ export function InventoryReportsPage() {
             </TableBody>
           </Table>
         </div>
-        <Card>
-          <CardContent className="pt-4">
-            <h2 className="mb-3 text-base font-semibold text-text-primary">Workflow</h2>
-            <WorkflowTracker stages={workflowStages('Inventory & Reports')} />
-          </CardContent>
-        </Card>
       </div>
 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">

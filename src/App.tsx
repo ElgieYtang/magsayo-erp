@@ -1,10 +1,13 @@
+import { RequireAuth } from '@/components/auth/RequireAuth'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { AuthProvider } from '@/data/auth'
 import { ErpProvider } from '@/data/erpStore'
 import { AccomplishmentReportsPage } from '@/pages/AccomplishmentReports'
 import { DashboardPage } from '@/pages/Dashboard'
 import { DeliveryReceiptsPage } from '@/pages/DeliveryReceipts'
 import { DocumentPreviewPage } from '@/pages/DocumentPreview'
 import { InventoryReportsPage } from '@/pages/InventoryReports'
+import { LoginPage } from '@/pages/Login'
 import { OutslipsPage } from '@/pages/Outslips'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import { PurchaseOrdersPage } from '@/pages/PurchaseOrders'
@@ -19,10 +22,13 @@ function setupPage(title: string, description: string) {
 
 export default function App() {
   return (
-    <ErpProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<AppLayout />}>
+    <AuthProvider>
+      <ErpProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="login" element={<LoginPage />} />
+            <Route element={<RequireAuth />}>
+              <Route element={<AppLayout />}>
             <Route index element={<DashboardPage />} />
             <Route path="quotations" element={<QuotationsPage />} />
             <Route path="purchase-orders" element={<PurchaseOrdersPage />} />
@@ -105,9 +111,11 @@ export default function App() {
             <Route path="products" element={<Navigate to="/setup/items" replace />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="document-preview" element={<DocumentPreviewPage />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </ErpProvider>
+              </Route>
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </ErpProvider>
+    </AuthProvider>
   )
 }

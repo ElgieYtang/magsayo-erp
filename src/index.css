@@ -40,6 +40,22 @@ body {
   min-height: 100vh;
 }
 
+html.login-route,
+html.login-route body,
+html.login-route #root {
+  overflow: hidden;
+  height: 100%;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

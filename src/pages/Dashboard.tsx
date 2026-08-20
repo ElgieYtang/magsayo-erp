@@ -99,7 +99,7 @@ export function DashboardPage() {
     <div>
       <PageHeader
         title="Dashboard"
-        description="Overview of current transactions and workflow status."
+        description="Overview of current transactions."
       />
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

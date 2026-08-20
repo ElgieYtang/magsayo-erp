@@ -11,8 +11,6 @@ import {
   TableLink,
   TableRow,
 } from '@/components/ui/table'
-import { WorkflowTracker } from '@/components/workflow/WorkflowTracker'
-import { workflowStages } from '@/config/workflow'
 import { useErp } from '@/data/erpStore'
 import { Printer } from 'lucide-react'
 import { useState } from 'react'
@@ -48,8 +46,7 @@ export function PurchaseOrdersPage() {
         description="Approved purchase orders can create an Outslip without re-entering items."
       />
 
-      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      <div className="mb-6">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
@@ -81,16 +78,6 @@ export function PurchaseOrdersPage() {
               ))}
             </TableBody>
           </Table>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Workflow Progress</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <WorkflowTracker stages={workflowStages('Purchase Order')} />
-          </CardContent>
-        </Card>
       </div>
 
       {selected && (

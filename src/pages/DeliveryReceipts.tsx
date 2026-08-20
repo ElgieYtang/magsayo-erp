@@ -11,8 +11,6 @@ import {
   TableLink,
   TableRow,
 } from '@/components/ui/table'
-import { WorkflowTracker } from '@/components/workflow/WorkflowTracker'
-import { workflowStages } from '@/config/workflow'
 import { useErp } from '@/data/erpStore'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -65,8 +63,8 @@ export function DeliveryReceiptsPage() {
         description="Created from a released Outslip after inventory is recorded."
       />
 
-      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      <div className="mb-6">
+        <div>
           {deliveryReceipts.length === 0 ? (
             <Card>
               <CardContent className="py-10 text-center text-sm text-text-secondary">
@@ -116,14 +114,6 @@ export function DeliveryReceiptsPage() {
             </Table>
           )}
         </div>
-        <Card>
-          <CardHeader>
-            <CardTitle>Workflow Progress</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <WorkflowTracker stages={workflowStages('Delivery Receipt')} />
-          </CardContent>
-        </Card>
       </div>
 
       {selected && (

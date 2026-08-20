@@ -11,8 +11,6 @@ import {
   TableLink,
   TableRow,
 } from '@/components/ui/table'
-import { WorkflowTracker } from '@/components/workflow/WorkflowTracker'
-import { workflowStages } from '@/config/workflow'
 import { useErp } from '@/data/erpStore'
 import type { OutslipStatus } from '@/data/erpTypes'
 import { useEffect, useState } from 'react'
@@ -51,8 +49,8 @@ export function OutslipsPage() {
         description="Created from an approved Purchase Order. Released outslips post stock-out movement."
       />
 
-      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      <div className="mb-6">
+        <div>
           {outslips.length === 0 ? (
             <Card>
               <CardContent className="py-10 text-center text-sm text-text-secondary">
@@ -99,14 +97,6 @@ export function OutslipsPage() {
             </Table>
           )}
         </div>
-        <Card>
-          <CardHeader>
-            <CardTitle>Workflow Progress</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <WorkflowTracker stages={workflowStages('Outslip')} />
-          </CardContent>
-        </Card>
       </div>
 
       {selected && (
