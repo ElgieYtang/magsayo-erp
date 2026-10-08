@@ -34,13 +34,15 @@ export const FormField = ({
   label,
   children,
   className,
+  labelClassName,
 }: {
   label: string
   children: React.ReactNode
   className?: string
+  labelClassName?: string
 }) => (
   <div className={cn('space-y-1.5', className)}>
-    <Label>{label}</Label>
+    <Label className={labelClassName}>{label}</Label>
     {children}
   </div>
 )

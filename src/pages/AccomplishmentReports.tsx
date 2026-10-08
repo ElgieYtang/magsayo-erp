@@ -1,7 +1,6 @@
 import { AccomplishmentReport } from '@/components/documents/AccomplishmentReport'
+import { PicturesModal } from '@/components/documents/accomplishment/PicturesModal'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import {
   Table,
   TableBody,
@@ -11,93 +10,148 @@ import {
   TableLink,
   TableRow,
 } from '@/components/ui/table'
-import {
-  accomplishmentReports,
-  type AccomplishmentReportData,
-  type AccomplishmentReportImage,
-} from '@/data/accomplishmentReports'
-import { optimizeImageFile } from '@/lib/optimizeImage'
-import { IMAGES_PER_PAGE, pageCountForImages } from '@/lib/reportPages'
-import { Printer, Upload } from 'lucide-react'
-import { useMemo, useState, type ChangeEvent } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import type { AccomplishmentReportData } from '@/data/accomplishmentReports'
+import type { DeliveryReceipt } from '@/data/erpTypes'
 import { useErp } from '@/data/erpStore'
+import {
+  buildReportViewModel,
+  toReportImage,
+  type ReportFormData,
+} from '@/lib/accomplishmentReport'
+import {
+  clearImages,
+  handleImageUpload,
+  removeImage,
+  type ReportImage,
+} from '@/lib/accomplishmentReportImages'
+import {
+  loadAccomplishmentReports,
+  syncAccomplishmentReportsFromDeliveryReceipts,
+  updateAccomplishmentReport,
+} from '@/lib/accomplishmentReports'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
-const statusLabel = {
-  approved: 'Approved',
-  pending: 'Pending',
-  draft: 'Draft',
-} as const
+function formFromReport(
+  report: AccomplishmentReportData | undefined,
+  linkedReceipt?: DeliveryReceipt,
+): ReportFormData {
+  if (!report) {
+    return {
+      projectName: '',
+      location: '',
+      installationReportNo: '',
+      date: '',
+      remarks: '',
+      preparedBy: '',
+      preparedByPosition: '',
+      confirmedBy: 'Signature of Printed Name / Position',
+    }
+  }
+
+  return {
+    projectName: linkedReceipt?.project || report.projectName,
+    location: linkedReceipt?.destination || report.location,
+    installationReportNo: report.installationReportNo,
+    date: report.date,
+    remarks: '',
+    preparedBy: report.preparedBy,
+    preparedByPosition: report.preparedByPosition,
+    confirmedBy: report.confirmedByLabel,
+  }
+}
+
+function imagesFromReport(report: AccomplishmentReportData | undefined): ReportImage[] {
+  if (!report) return []
+  return report.images.map(toReportImage)
+}
 
 export function AccomplishmentReportsPage() {
+  const navigate = useNavigate()
   const [params] = useSearchParams()
   const { deliveryReceipts } = useErp()
-  const linkedReceipt = deliveryReceipts.find((row) => row.id === params.get('dr'))
-  const [selectedId, setSelectedId] = useState(accomplishmentReports[0].id)
-  const [uploadedImages, setUploadedImages] = useState<AccomplishmentReportImage[]>([])
+  const [reports, setReports] = useState<AccomplishmentReportData[]>(() =>
+    loadAccomplishmentReports(),
+  )
+  const [selectedId, setSelectedId] = useState(reports[0]?.id ?? '')
+  const [images, setImages] = useState<ReportImage[]>(() =>
+    imagesFromReport(reports.find((row) => row.id === reports[0]?.id)),
+  )
   const [isOptimizing, setIsOptimizing] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [picturesOpen, setPicturesOpen] = useState(false)
+  const [printOpen, setPrintOpen] = useState(false)
 
-  const selectedReport = accomplishmentReports.find((report) => report.id === selectedId)
+  const selectedReport = useMemo(
+    () => reports.find((row) => row.id === selectedId),
+    [reports, selectedId],
+  )
+  const linkedReceipt = deliveryReceipts.find(
+    (row) => row.id === (params.get('dr') || selectedReport?.deliveryReceiptId),
+  )
 
-  const previewReport: AccomplishmentReportData | undefined = useMemo(() => {
-    if (!selectedReport) return undefined
-    return {
-      ...selectedReport,
-      projectName: linkedReceipt?.project ?? selectedReport.projectName,
-      location: linkedReceipt?.destination ?? selectedReport.location,
-      remarks: linkedReceipt
-        ? `From ${linkedReceipt.id} / ${linkedReceipt.outslipId} / ${linkedReceipt.poId}. Customer: ${linkedReceipt.customer}.`
-        : selectedReport.remarks,
-      images: [...selectedReport.images, ...uploadedImages],
-    }
-  }, [selectedReport, uploadedImages, linkedReceipt])
-
-  const imageCount = previewReport?.images.length ?? 0
-  const pageCount = pageCountForImages(imageCount)
-
-  function revokeUploaded(images: AccomplishmentReportImage[]) {
-    images.forEach((image) => {
-      if (image.src.startsWith('blob:')) {
-        URL.revokeObjectURL(image.src)
+  useEffect(() => {
+    const next = syncAccomplishmentReportsFromDeliveryReceipts(deliveryReceipts)
+    setReports((current) => {
+      if (
+        current.length === next.length &&
+        current.every((row, index) => row.id === next[index]?.id)
+      ) {
+        return current
       }
+      return next
     })
-  }
+
+    const receiptId = params.get('dr')
+    if (!receiptId) {
+      setSelectedId((current) => current || next[0]?.id || '')
+      return
+    }
+
+    const fromQuery = next.find((row) => row.deliveryReceiptId === receiptId) ?? next[0]
+    if (!fromQuery) return
+    setSelectedId(fromQuery.id)
+    setImages(imagesFromReport(fromQuery))
+    setPicturesOpen(true)
+    navigate('/accomplishments', { replace: true })
+  }, [deliveryReceipts, navigate, params])
+
+  const form = useMemo(
+    () => formFromReport(selectedReport, linkedReceipt),
+    [selectedReport, linkedReceipt],
+  )
+
+  const reportViewModel = useMemo(
+    () => buildReportViewModel(selectedId, form, images),
+    [selectedId, form, images],
+  )
 
   function handleSelectReport(id: string) {
-    setUploadedImages((current) => {
-      revokeUploaded(current)
-      return []
-    })
-    setUploadError(null)
-    setSelectedId(id)
+    if (id !== selectedId) {
+      clearImages(images)
+      setUploadError(null)
+      setSelectedId(id)
+      setImages(imagesFromReport(reports.find((row) => row.id === id)))
+    }
+    setPicturesOpen(true)
   }
 
-  async function handleUpload(event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? [])
-    event.target.value = ''
-    if (files.length === 0) return
-
+  async function onUpload(files: File[]) {
     setIsOptimizing(true)
     setUploadError(null)
-
     try {
-      const optimizedImages: AccomplishmentReportImage[] = []
-
-      try {
-        for (const [index, file] of files.entries()) {
-          const optimizedBlob = await optimizeImageFile(file)
-          optimizedImages.push({
-            id: `upload-${Date.now()}-${index}`,
-            src: URL.createObjectURL(optimizedBlob),
-            alt: file.name.replace(/\.[^.]+$/, ''),
-          })
-        }
-
-        setUploadedImages((current) => [...current, ...optimizedImages])
-      } catch {
-        revokeUploaded(optimizedImages)
-        throw new Error('optimize-failed')
+      const next = await handleImageUpload(files, images)
+      setImages(next)
+      if (selectedId) {
+        setReports(
+          updateAccomplishmentReport(selectedId, {
+            images: next.map((image) => ({
+              id: image.id,
+              src: image.src,
+              alt: image.alt,
+            })),
+          }),
+        )
       }
     } catch {
       setUploadError(
@@ -108,23 +162,41 @@ export function AccomplishmentReportsPage() {
     }
   }
 
-  function handlePrint() {
-    window.print()
+  function onRemoveImage(id: string) {
+    setImages((current) => {
+      const next = removeImage(current, id)
+      if (selectedId) {
+        setReports(
+          updateAccomplishmentReport(selectedId, {
+            images: next.map((image) => ({
+              id: image.id,
+              src: image.src,
+              alt: image.alt,
+            })),
+          }),
+        )
+      }
+      return next
+    })
   }
+
+  function handlePrint() {
+    setPrintOpen(true)
+    window.setTimeout(() => window.print(), 50)
+  }
+
+  useEffect(() => {
+    function handleAfterPrint() {
+      setPrintOpen(false)
+    }
+    window.addEventListener('afterprint', handleAfterPrint)
+    return () => window.removeEventListener('afterprint', handleAfterPrint)
+  }, [])
 
   return (
     <div>
       <div className="no-print">
-        <PageHeader
-          title="Accomplishment Reports"
-          description="Photos are resized before use, then placed in a 2×2 grid (maximum 4 per page)."
-          action={
-            <Button onClick={handlePrint}>
-              <Printer className="h-4 w-4" />
-              Print / Save PDF
-            </Button>
-          }
-        />
+        <PageHeader title="Accomplishment Reports" />
 
         <Table>
           <TableHeader>
@@ -133,76 +205,57 @@ export function AccomplishmentReportsPage() {
               <TableHead>Project Name</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Pictures</TableHead>
-              <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {accomplishmentReports.map((report) => {
-              const isSelected = report.id === selectedId
-              const count =
-                report.id === selectedId
-                  ? imageCount
-                  : report.images.length
+            {reports.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="py-10 text-center text-sm text-text-secondary">
+                  No accomplishment reports yet. Create one from a Delivery Receipt.
+                </TableCell>
+              </TableRow>
+            ) : (
+              reports.map((report) => {
+                const isSelected = report.id === selectedId
+                const count = isSelected ? images.length : report.images.length
 
-              return (
-                <TableRow
-                  key={report.id}
-                  className={isSelected ? 'bg-maroon-light hover:bg-maroon-light' : undefined}
-                >
-                  <TableCell>
-                    <TableLink onClick={() => handleSelectReport(report.id)}>
-                      {report.id}
-                    </TableLink>
-                  </TableCell>
-                  <TableCell>{report.projectName}</TableCell>
-                  <TableCell>{report.date}</TableCell>
-                  <TableCell>{count}</TableCell>
-                  <TableCell>
-                    <Badge variant={report.status}>{statusLabel[report.status]}</Badge>
-                  </TableCell>
-                </TableRow>
-              )
-            })}
+                return (
+                  <TableRow
+                    key={report.id}
+                    className={isSelected ? 'bg-maroon-light hover:bg-maroon-light' : undefined}
+                  >
+                    <TableCell>
+                      <TableLink onClick={() => handleSelectReport(report.id)}>
+                        {report.id}
+                      </TableLink>
+                    </TableCell>
+                    <TableCell>{report.projectName}</TableCell>
+                    <TableCell>{report.date}</TableCell>
+                    <TableCell>{count}</TableCell>
+                  </TableRow>
+                )
+              })
+            )}
           </TableBody>
         </Table>
 
-        {previewReport && (
-          <div className="mb-4 mt-6 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-text-secondary">
-              Previewing {previewReport.id}: {imageCount} picture
-              {imageCount === 1 ? '' : 's'} across {pageCount} page
-              {pageCount === 1 ? '' : 's'} (maximum {IMAGES_PER_PAGE} pictures per
-              page).
-              {isOptimizing ? ' Optimizing selected photos…' : ''}
-            </p>
-            <label
-              className={`inline-flex cursor-pointer items-center gap-2 rounded-md border border-maroon bg-surface px-4 py-2 text-sm font-medium text-maroon hover:bg-maroon-light ${
-                isOptimizing ? 'pointer-events-none opacity-60' : ''
-              }`}
-            >
-              <Upload className="h-4 w-4" />
-              {isOptimizing ? 'Optimizing…' : 'Upload pictures'}
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                className="sr-only"
-                disabled={isOptimizing}
-                onChange={handleUpload}
-              />
-            </label>
-          </div>
-        )}
-        {uploadError && (
-          <p className="mb-4 text-sm text-error-text">{uploadError}</p>
-        )}
+        {picturesOpen ? (
+          <PicturesModal
+            reportId={selectedId}
+            images={images}
+            isOptimizing={isOptimizing}
+            uploadError={uploadError}
+            onClose={() => setPicturesOpen(false)}
+            onUpload={onUpload}
+            onRemoveImage={onRemoveImage}
+            onPrint={handlePrint}
+          />
+        ) : null}
       </div>
 
-      {previewReport && (
-        <div className="report-preview-frame">
-          <AccomplishmentReport report={previewReport} />
-        </div>
-      )}
+      <div className="report-print-root">
+        {printOpen && selectedId ? <AccomplishmentReport report={reportViewModel} /> : null}
+      </div>
     </div>
   )
 }

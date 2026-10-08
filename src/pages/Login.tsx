@@ -1,8 +1,9 @@
 import logo from '@/assets/logo.png'
 import { useAuth } from '@/data/auth'
+import { getAuthToken } from '@/lib/api'
 import { ClipboardList, Eye, EyeOff, FileText, ShoppingCart, Truck } from 'lucide-react'
 import { useState, useEffect, type FormEvent } from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 
 const modules = [
   { label: 'Quotations', icon: FileText, tone: 'bg-[#8B1E3F]' },
@@ -13,6 +14,7 @@ const modules = [
 
 export function LoginPage() {
   const { user, login } = useAuth()
+  const navigate = useNavigate()
   const location = useLocation()
   const from =
     (location.state as { from?: string } | null)?.from &&
@@ -31,7 +33,7 @@ export function LoginPage() {
     return () => document.documentElement.classList.remove('login-route')
   }, [])
 
-  if (user) {
+  if (user && getAuthToken()) {
     return <Navigate to={from} replace />
   }
 
@@ -41,6 +43,7 @@ export function LoginPage() {
     setSubmitting(true)
     try {
       await login({ email, password, remember: true })
+      navigate(from, { replace: true })
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to sign in.')
     } finally {
@@ -49,8 +52,8 @@ export function LoginPage() {
   }
 
   return (
-    <div className="login-screen flex h-screen overflow-hidden flex-col lg:flex-row">
-      <section className="relative flex min-h-0 flex-1 flex-col justify-between overflow-y-auto bg-[#1a1614] px-8 py-8 text-white scrollbar-hide sm:px-12 lg:overflow-hidden lg:px-16 lg:py-10">
+    <div className="login-screen flex min-h-screen flex-col overflow-y-auto lg:h-screen lg:overflow-hidden lg:flex-row">
+      <section className="relative order-2 flex min-h-0 flex-1 flex-col justify-between overflow-y-auto bg-[#1a1614] px-6 py-8 text-white scrollbar-hide sm:px-12 lg:order-1 lg:overflow-hidden lg:px-16 lg:py-10">
         <div className="flex items-center gap-3">
           <img
             src={logo}
@@ -68,7 +71,7 @@ export function LoginPage() {
         </div>
 
         <div className="max-w-xl py-12 lg:py-0">
-          <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
+          <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-5xl">
             Streamlined operations for your{' '}
             <span className="bg-gradient-to-r from-[#e08a4a] to-[#f3c56b] bg-clip-text text-transparent">
               business.
@@ -98,10 +101,10 @@ export function LoginPage() {
           </div>
         </div>
 
-        <p className="text-xs text-white/40">© 2026 ResponsivCode. Internal use only.</p>
+        <p className="text-xs text-white/40">© 2026 ResponsivCode.</p>
       </section>
 
-      <section className="flex min-h-0 w-full shrink-0 items-center justify-center overflow-y-auto bg-white px-6 py-12 scrollbar-hide lg:w-[42%] lg:px-14">
+      <section className="order-1 flex min-h-0 w-full shrink-0 items-center justify-center overflow-y-auto bg-white px-6 py-10 scrollbar-hide lg:order-2 lg:w-[42%] lg:px-14 lg:py-12">
         <div className="w-full max-w-[380px]">
           <h2 className="text-3xl font-bold tracking-tight text-[#1a1614]">Sign in</h2>
           <p className="mt-1 text-sm text-neutral-400">Secure ERP access</p>
@@ -112,15 +115,15 @@ export function LoginPage() {
                 htmlFor="email"
                 className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-400"
               >
-                Email
+                Username or email
               </label>
               <input
                 id="email"
-                type="email"
+                type="text"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 autoComplete="username"
-                placeholder="admin@responsivcode.com"
+                placeholder="admin or admin@responsivcode.com"
                 required
                 autoFocus
                 className="h-12 w-full rounded-xl border-0 bg-[#f3ecec] px-4 text-sm text-[#1a1614] outline-none ring-0 placeholder:text-neutral-400 focus:bg-[#efe6e6] focus:ring-2 focus:ring-maroon/25"
@@ -181,10 +184,6 @@ export function LoginPage() {
               {submitting ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
-
-          <p className="mt-10 text-center text-[10px] font-semibold uppercase tracking-[0.22em] text-neutral-300">
-            Authorized personnel only
-          </p>
         </div>
       </section>
     </div>

@@ -1,4 +1,5 @@
 import { PageHeader } from '@/components/layout/PageHeader'
+import { AddButton } from '@/components/ui/add-button'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -22,10 +23,13 @@ export function ReportsPage() {
         title="Reports"
         description="Inventory reports generated from ERP transactions."
         action={
-          <Button onClick={() => window.print()}>
-            <Printer className="h-4 w-4" />
-            Print
-          </Button>
+          <div className="flex items-center gap-2">
+            <AddButton label="Add Report" />
+            <Button onClick={() => window.print()}>
+              <Printer className="h-4 w-4" />
+              Print
+            </Button>
+          </div>
         }
       />
 

@@ -1,6 +1,16 @@
 import {
+  ApiError,
+  clearAuthToken,
+  fetchCurrentUser,
+  getAuthToken,
+  loginApi,
+  logoutApi,
+  persistAuthToken,
+} from '@/lib/api'
+import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -15,17 +25,12 @@ export interface AuthUser {
 
 interface AuthContextValue {
   user: AuthUser | null
+  apiConnected: boolean
   login: (input: { email: string; password: string; remember: boolean }) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
-
-const DEMO = {
-  email: 'admin@responsivcode.com',
-  password: 'admin123',
-  name: 'Admin',
-}
 
 function loadUser(): AuthUser | null {
   try {
@@ -53,32 +58,70 @@ function clearUser() {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(loadUser)
+  const [user, setUser] = useState<AuthUser | null>(() => (getAuthToken() ? loadUser() : null))
+  const [apiConnected, setApiConnected] = useState(false)
+
+  useEffect(() => {
+    function onSessionExpired() {
+      clearUser()
+      setUser(null)
+      setApiConnected(false)
+    }
+
+    window.addEventListener('erp-session-expired', onSessionExpired)
+    return () => window.removeEventListener('erp-session-expired', onSessionExpired)
+  }, [])
+
+  useEffect(() => {
+    const token = getAuthToken()
+
+    if (!token) {
+      clearUser()
+      setUser(null)
+      setApiConnected(false)
+      return
+    }
+
+    fetchCurrentUser()
+      .then((next) => {
+        setUser(next)
+        persistUser(next, Boolean(localStorage.getItem(AUTH_KEY)))
+        setApiConnected(true)
+      })
+      .catch((error) => {
+        if (error instanceof ApiError && error.status === 401) {
+          clearAuthToken()
+          clearUser()
+          setUser(null)
+        }
+        setApiConnected(false)
+      })
+  }, [])
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
+      apiConnected,
       async login({ email, password, remember }) {
-        const mail = email.trim().toLowerCase()
-
-        if (mail === DEMO.email && password === DEMO.password) {
-          const next: AuthUser = {
-            name: DEMO.name,
-            email: DEMO.email,
-          }
-          persistUser(next, remember)
-          setUser(next)
-          return
-        }
-
-        throw new Error('Invalid email or password.')
+        const result = await loginApi(email.trim().toLowerCase(), password)
+        persistAuthToken(result.token, remember)
+        persistUser(result.user, remember)
+        setUser(result.user)
+        setApiConnected(true)
       },
-      logout() {
+      async logout() {
+        try {
+          await logoutApi()
+        } catch {
+          // Still clear the local session if Laravel is already offline.
+        }
+        clearAuthToken()
         clearUser()
         setUser(null)
+        setApiConnected(false)
       },
     }),
-    [user],
+    [user, apiConnected],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

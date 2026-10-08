@@ -1,4 +1,5 @@
 import { PageHeader } from '@/components/layout/PageHeader'
+import { AddButton } from '@/components/ui/add-button'
 import { Card, CardContent } from '@/components/ui/card'
 
 interface PlaceholderPageProps {
@@ -9,7 +10,11 @@ interface PlaceholderPageProps {
 export function PlaceholderPage({ title, description }: PlaceholderPageProps) {
   return (
     <div>
-      <PageHeader title={title} description={description} />
+      <PageHeader
+        title={title}
+        description={description}
+        action={<AddButton label={`Add ${title}`} />}
+      />
       <Card>
         <CardContent className="py-12 text-center">
           <p className="text-text-secondary">

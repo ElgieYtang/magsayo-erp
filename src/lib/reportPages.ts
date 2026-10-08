@@ -1,18 +1,21 @@
 export const IMAGES_PER_PAGE = 4
 
-export function pageCountForImages(imageCount: number): number {
+export function calculateTotalPages(imageCount: number): number {
   if (imageCount <= 0) return 1
   return Math.ceil(imageCount / IMAGES_PER_PAGE)
 }
 
+export function getImagesForPage<T>(images: T[], pageNumber: number): T[] {
+  const start = (pageNumber - 1) * IMAGES_PER_PAGE
+  return images.slice(start, start + IMAGES_PER_PAGE)
+}
+
 export function groupImagesIntoPages<T>(images: T[]): T[][] {
-  const pageCount = pageCountForImages(images.length)
+  const pageCount = calculateTotalPages(images.length)
   const pages: T[][] = []
 
   for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
-    const start = pageIndex * IMAGES_PER_PAGE
-    const end = start + IMAGES_PER_PAGE
-    pages.push(images.slice(start, end))
+    pages.push(getImagesForPage(images, pageIndex + 1))
   }
 
   return pages
@@ -28,3 +31,6 @@ export function padImageSlots<T>(
   }
   return slots
 }
+
+/** @deprecated Use calculateTotalPages */
+export const pageCountForImages = calculateTotalPages

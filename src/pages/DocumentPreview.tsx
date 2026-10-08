@@ -27,15 +27,15 @@ export function DocumentPreview() {
         <div className="mt-8 space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-text-secondary">Quotation No:</span>
-            <span className="font-medium text-maroon">QTN-00001</span>
+            <span className="font-medium text-maroon">—</span>
           </div>
           <div className="flex justify-between">
             <span className="text-text-secondary">Date:</span>
-            <span className="text-text-primary">August 19, 2026</span>
+            <span className="text-text-primary">—</span>
           </div>
           <div className="flex justify-between">
             <span className="text-text-secondary">Customer:</span>
-            <span className="text-text-primary">ABC Corporation</span>
+            <span className="text-text-primary">—</span>
           </div>
         </div>
 
@@ -58,10 +58,9 @@ export function DocumentPreview() {
           </thead>
           <tbody>
             <tr className="border-t" style={{ borderColor: colors.border }}>
-              <td className="py-3 text-text-primary">Laptop</td>
-              <td className="py-3 text-right text-text-primary">10</td>
-              <td className="py-3 text-right text-text-primary">₱40,000</td>
-              <td className="py-3 text-right text-text-primary">₱400,000</td>
+              <td className="py-3 text-text-secondary" colSpan={4}>
+                No line items.
+              </td>
             </tr>
           </tbody>
         </table>
@@ -74,7 +73,7 @@ export function DocumentPreview() {
         <div className="flex justify-end">
           <div className="text-right">
             <span className="text-sm text-text-secondary">TOTAL </span>
-            <span className="text-lg font-bold text-text-primary">₱400,000</span>
+            <span className="text-lg font-bold text-text-primary">₱0</span>
           </div>
         </div>
       </CardContent>

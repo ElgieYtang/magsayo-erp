@@ -1,123 +1,449 @@
+import { DeleteQuotationDialog } from '@/components/quotations/DeleteQuotationDialog'
+import { QuotationDetailModal } from '@/components/quotations/QuotationDetailModal'
+import { QuotationDocument } from '@/components/quotations/QuotationDocument'
+import { QuotationFiltersBar } from '@/components/quotations/QuotationFiltersBar'
+import { QuotationFormModal } from '@/components/quotations/QuotationFormModal'
+import { QuotationTable } from '@/components/quotations/QuotationTable'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { Badge } from '@/components/ui/badge'
+import { AddButton } from '@/components/ui/add-button'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { FormField, Input } from '@/components/ui/input'
+import { Pagination } from '@/components/ui/pagination'
+import { Toast } from '@/components/ui/toast'
+import type {
+  Quotation,
+  QuotationFilters,
+  QuotationSortField,
+  QuotationStatus,
+  SortDirection,
+} from '@/data/quotationTypes'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableLink,
-  TableRow,
-} from '@/components/ui/table'
-import { Plus } from 'lucide-react'
+  calculateTotals,
+  createEmptyQuotation,
+  filterQuotations,
+  generateQuotationNo,
+  handleQuotationPrint,
+  initialQuotations,
+  loadQuotations,
+  paginateItems,
+  saveQuotations,
+  sortQuotations,
+} from '@/lib/quotations'
+import {
+  createPurchaseOrderFromQuotation,
+  generatePoNo,
+  initialPurchaseOrders,
+  loadPurchaseOrders,
+  savePurchaseOrders,
+} from '@/lib/purchaseOrders'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 
-const quotations = [
-  {
-    id: 'QTN-00001',
-    customer: 'ABC Corporation',
-    date: 'Aug 18, 2026',
-    amount: '₱400,000',
-    status: 'approved' as const,
-  },
-  {
-    id: 'QTN-00002',
-    customer: 'XYZ Industries',
-    date: 'Aug 18, 2026',
-    amount: '₱250,000',
-    status: 'pending' as const,
-  },
-  {
-    id: 'QTN-00003',
-    customer: 'Global Tech Inc.',
-    date: 'Aug 17, 2026',
-    amount: '₱180,000',
-    status: 'draft' as const,
-  },
-]
+type Screen = 'list' | 'preview'
 
-const statusBadge = {
-  approved: 'approved' as const,
-  pending: 'pending' as const,
-  draft: 'draft' as const,
+const PAGE_SIZE = 10
+const QUOTATIONS_LIST_PATH = '/quotations'
+const QUOTATIONS_CREATE_PATH = '/quotations/create'
+
+const defaultFilters: QuotationFilters = {
+  status: 'all',
+  search: '',
+  dateFrom: '',
+  dateTo: '',
 }
 
-const statusLabel = {
-  approved: 'Approved',
-  pending: 'Pending',
-  draft: 'Draft',
+function isCreatePath(pathname: string) {
+  return pathname.replace(/\/$/, '') === QUOTATIONS_CREATE_PATH
 }
 
 export function QuotationsPage() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const creating = isCreatePath(location.pathname)
+  const wasCreatingRef = useRef(creating)
+
+  const [quotations, setQuotations] = useState<Quotation[]>(() =>
+    loadQuotations(initialQuotations),
+  )
+  const [screen, setScreen] = useState<Screen>('list')
+  const [filters, setFilters] = useState<QuotationFilters>(defaultFilters)
+  const [sortField, setSortField] = useState<QuotationSortField>('date')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const [page, setPage] = useState(1)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [detailId, setDetailId] = useState<string | null>(null)
+  const [draft, setDraft] = useState<Quotation | null>(null)
+  const [editorMode, setEditorMode] = useState<'create' | 'edit' | null>(null)
+  const [printQuotation, setPrintQuotation] = useState<Quotation | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Quotation | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+
+  useEffect(() => {
+    saveQuotations(quotations)
+  }, [quotations])
+
+  useEffect(() => {
+    function refreshQuotations() {
+      setQuotations((current) => {
+        const next = loadQuotations(initialQuotations)
+        return JSON.stringify(current) === JSON.stringify(next) ? current : next
+      })
+    }
+    window.addEventListener('erp-quotations-updated', refreshQuotations)
+    return () => window.removeEventListener('erp-quotations-updated', refreshQuotations)
+  }, [])
+
+  useEffect(() => {
+    if (!toast) return
+    const timer = window.setTimeout(() => setToast(null), 4000)
+    return () => window.clearTimeout(timer)
+  }, [toast])
+
+  useEffect(() => {
+    if (creating) {
+      if (!wasCreatingRef.current) {
+        setSelectedId(null)
+        setDetailId(null)
+        setScreen('list')
+        setEditorMode('create')
+        setDraft((current) => current ?? createEmptyQuotation(generateQuotationNo(quotations)))
+      }
+      wasCreatingRef.current = true
+      return
+    }
+
+    if (wasCreatingRef.current) {
+      wasCreatingRef.current = false
+      if (editorMode === 'create') {
+        setDraft(null)
+        setEditorMode(null)
+      }
+    }
+  }, [creating, quotations, editorMode])
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<QuotationStatus | 'all', number> = {
+      all: quotations.length,
+      draft: 0,
+      pending: 0,
+      approved: 0,
+      rejected: 0,
+    }
+    quotations.forEach((quotation) => {
+      counts[quotation.status] += 1
+    })
+    return counts
+  }, [quotations])
+
+  const filteredQuotations = useMemo(() => {
+    const filtered = filterQuotations(quotations, filters)
+    return sortQuotations(filtered, sortField, sortDirection)
+  }, [quotations, filters, sortField, sortDirection])
+
+  const pagination = useMemo(
+    () => paginateItems(filteredQuotations, page, PAGE_SIZE),
+    [filteredQuotations, page],
+  )
+
+  const detailQuotation = useMemo(
+    () => (detailId ? quotations.find((row) => row.id === detailId) ?? null : null),
+    [detailId, quotations],
+  )
+
+  useEffect(() => {
+    setPage(1)
+  }, [filters, sortField, sortDirection])
+
+  useEffect(() => {
+    if (page > pagination.totalPages) {
+      setPage(pagination.totalPages)
+    }
+  }, [page, pagination.totalPages])
+
+  function handleSort(field: QuotationSortField) {
+    if (sortField === field) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+    setSortField(field)
+    setSortDirection('asc')
+  }
+
+  function openCreate() {
+    setSelectedId(null)
+    setDetailId(null)
+    setScreen('list')
+    setEditorMode('create')
+    setDraft(createEmptyQuotation(generateQuotationNo(quotations)))
+    navigate(QUOTATIONS_CREATE_PATH)
+  }
+
+  function closeEditor() {
+    setDraft(null)
+    setEditorMode(null)
+    if (creating) {
+      navigate(QUOTATIONS_LIST_PATH, { replace: true })
+    }
+  }
+
+  function openEdit(quotation: Quotation) {
+    setDetailId(null)
+    setEditorMode('edit')
+    setDraft(structuredClone(quotation))
+    setScreen('list')
+    setSelectedId(quotation.id)
+    if (creating) {
+      navigate(QUOTATIONS_LIST_PATH, { replace: true })
+    }
+  }
+
+  function openDetail(quotation: Quotation) {
+    setSelectedId(quotation.id)
+    setDetailId(quotation.id)
+  }
+
+  function closeDetail() {
+    setDetailId(null)
+  }
+
+  function returnToList() {
+    setDraft(null)
+    setEditorMode(null)
+    setSelectedId(null)
+    setDetailId(null)
+    setScreen('list')
+    if (creating) {
+      navigate(QUOTATIONS_LIST_PATH, { replace: true })
+      return
+    }
+    if (location.pathname.replace(/\/$/, '') !== QUOTATIONS_LIST_PATH) {
+      navigate(QUOTATIONS_LIST_PATH)
+    }
+  }
+
+  function handleSave() {
+    if (!draft) return
+    if (!draft.customerId) {
+      window.alert('Please select a customer before saving.')
+      return
+    }
+    if (draft.items.length === 0) {
+      window.alert('Please add at least one item before saving.')
+      return
+    }
+
+    const totals = calculateTotals(draft.items, draft.discount, draft.tax)
+    const exists = quotations.some((row) => row.id === draft.id)
+    const next: Quotation = {
+      ...draft,
+      ...totals,
+      status: exists ? draft.status : draft.status === 'draft' ? 'pending' : draft.status,
+    }
+
+    setQuotations((current) => {
+      const alreadyExists = current.some((row) => row.id === next.id)
+      if (alreadyExists) {
+        return current.map((row) => (row.id === next.id ? next : row))
+      }
+      return [...current, next]
+    })
+
+    setSelectedId(next.id)
+    setDraft(null)
+    setEditorMode(null)
+    setScreen('list')
+    setToast(
+      exists ? `Quotation ${next.quotationNo} updated.` : `Quotation ${next.quotationNo} created.`,
+    )
+    navigate(QUOTATIONS_LIST_PATH, { replace: creating })
+  }
+
+  function confirmDelete() {
+    if (!deleteTarget) return
+    const deletedNo = deleteTarget.quotationNo
+    setQuotations((current) => current.filter((row) => row.id !== deleteTarget.id))
+    if (selectedId === deleteTarget.id) {
+      setSelectedId(null)
+      setDraft(null)
+      setEditorMode(null)
+    }
+    if (detailId === deleteTarget.id) {
+      setDetailId(null)
+    }
+    setDeleteTarget(null)
+    setScreen('list')
+    setToast(`Quotation ${deletedNo} deleted.`)
+  }
+
+  function handlePrint(quotation: Quotation) {
+    setPrintQuotation(quotation)
+    requestAnimationFrame(() => handleQuotationPrint())
+  }
+
+  function openPreview(quotation: Quotation) {
+    setDetailId(null)
+    setEditorMode(null)
+    setDraft(structuredClone(quotation))
+    setSelectedId(quotation.id)
+    setScreen('preview')
+  }
+
+  function handleConvertToPo(
+    quotation: Quotation,
+    supplier: { id: string; name: string; address?: string; phone?: string },
+  ) {
+    setDetailId(null)
+    const existing = loadPurchaseOrders(initialPurchaseOrders)
+    const purchaseOrder = createPurchaseOrderFromQuotation(
+      generatePoNo(existing),
+      quotation,
+      supplier,
+    )
+    savePurchaseOrders([...existing, purchaseOrder])
+    setToast(`Purchase order ${purchaseOrder.poNo} created from ${quotation.quotationNo}.`)
+    navigate('/purchase-orders', {
+      state: { highlightId: purchaseOrder.id },
+    })
+  }
+
+  function applyStatusFields(
+    row: Quotation,
+    status: QuotationStatus,
+  ): Quotation {
+    return {
+      ...row,
+      status,
+      approvedBy:
+        status === 'approved'
+          ? row.approvedBy || 'WEB ADMINISTRATOR'
+          : status === 'rejected'
+            ? ''
+            : row.approvedBy,
+      approvedByUserId: status === 'rejected' ? '' : row.approvedByUserId,
+    }
+  }
+
+  function handleStatusChange(quotation: Quotation, status: QuotationStatus) {
+    setQuotations((current) =>
+      current.map((row) =>
+        row.id === quotation.id ? applyStatusFields(row, status) : row,
+      ),
+    )
+    setSelectedId(quotation.id)
+    setDraft((current) =>
+      current && current.id === quotation.id
+        ? applyStatusFields(current, status)
+        : current,
+    )
+    const label =
+      status === 'approved'
+        ? 'approved'
+        : status === 'rejected'
+          ? 'rejected'
+          : status === 'pending'
+            ? 'set to pending'
+            : status
+    setToast(`Quotation ${quotation.quotationNo} ${label}.`)
+  }
+
+  if (screen === 'preview' && draft) {
+    return (
+      <div>
+        <div className="no-print">
+          {toast ? <Toast message={toast} onClose={() => setToast(null)} /> : null}
+          <PageHeader
+            title="Quotation Preview"
+            description={`Preview ${draft.quotationNo} before printing.`}
+            action={
+              <div className="flex gap-2">
+                <Button type="button" variant="secondary" onClick={returnToList}>
+                  Back to List
+                </Button>
+                <Button type="button" onClick={() => handlePrint(draft)}>
+                  Print
+                </Button>
+              </div>
+            }
+          />
+          <div className="rounded-lg border border-border bg-surface p-4">
+            <QuotationDocument quotation={draft} />
+          </div>
+        </div>
+        <div className="quotation-print-root">
+          <QuotationDocument quotation={draft} />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div>
-      <PageHeader
-        title="Quotations"
-        description="Create and manage customer quotations."
-        action={
-          <Button>
-            <Plus className="h-4 w-4" />
-            New Quotation
-          </Button>
-        }
-      />
+      <div className="no-print">
+        {toast ? <Toast message={toast} onClose={() => setToast(null)} /> : null}
+        <PageHeader
+          title="Quotations"
+          action={<AddButton label="Add Quotation" onClick={openCreate} />}
+        />
 
-      <div className="mb-6">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Quotation No.</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {quotations.map((q) => (
-                <TableRow key={q.id}>
-                  <TableCell>
-                    <TableLink>{q.id}</TableLink>
-                  </TableCell>
-                  <TableCell>{q.customer}</TableCell>
-                  <TableCell>{q.date}</TableCell>
-                  <TableCell>{q.amount}</TableCell>
-                  <TableCell>
-                    <Badge variant={statusBadge[q.status]}>
-                      {statusLabel[q.status]}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <QuotationFiltersBar
+          filters={filters}
+          counts={statusCounts}
+          onChange={setFilters}
+        />
+
+        <QuotationTable
+          quotations={pagination.items}
+          selectedId={selectedId}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onSort={handleSort}
+          onSelect={openDetail}
+          onEdit={openEdit}
+          onDelete={setDeleteTarget}
+          onPrint={handlePrint}
+          onApprove={(quotation) => handleStatusChange(quotation, 'approved')}
+        />
+
+        {pagination.totalPages > 1 ? (
+          <div className="mt-4">
+            <Pagination
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              onPageChange={setPage}
+            />
+          </div>
+        ) : null}
+
+        <DeleteQuotationDialog
+          quotation={deleteTarget}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={confirmDelete}
+        />
+
+        {detailQuotation ? (
+          <QuotationDetailModal
+            quotation={detailQuotation}
+            onClose={closeDetail}
+            onStatusChange={handleStatusChange}
+            onPreview={openPreview}
+            onConvertToPo={handleConvertToPo}
+          />
+        ) : null}
+
+        {draft && editorMode ? (
+          <QuotationFormModal
+            open
+            title={editorMode === 'create' ? 'New Quotation' : 'Edit Quotation'}
+            quotation={draft}
+            onChange={setDraft}
+            onSave={handleSave}
+            onClose={closeEditor}
+          />
+        ) : null}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Quotation Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FormField label="Quotation No.">
-              <Input value="QTN-00001" readOnly />
-            </FormField>
-            <FormField label="Date">
-              <Input value="Aug 19, 2026" readOnly />
-            </FormField>
-            <FormField label="Customer" className="sm:col-span-2">
-              <Input value="ABC Corporation" readOnly />
-            </FormField>
-          </div>
-          <div className="mt-4 flex gap-3">
-            <Button>Save</Button>
-            <Button variant="secondary">Preview</Button>
-            <Button variant="secondary">Cancel</Button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="quotation-print-root">
+        {printQuotation ? <QuotationDocument quotation={printQuotation} /> : null}
+      </div>
     </div>
   )
 }

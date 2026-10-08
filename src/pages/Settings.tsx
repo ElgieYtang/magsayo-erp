@@ -1,3 +1,4 @@
+import { useAuth } from '@/data/auth'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -15,9 +16,9 @@ const LOCAL_KEY = 'erp-settings'
 
 const defaultSettings: AppSettings = {
   company_name: 'RESPONSIVCODE TECHNOLOGY SOLUTIONS',
-  company_address: 'Room 301E-3, Medalle Building, Fuente Osmeña, Cebu City 6000',
-  company_phone: '(032) 345-2283 / +63 917 573 4911',
-  company_email: 'lark.gel@gmail.com',
+  company_address: 'RM301-E3 Medalle Bldg., Fuente Osmeña, Capitol Site, Cebu City 6000',
+  company_phone: '09175734911',
+  company_email: 'info@responsivcode.com',
   user_name: 'Admin',
   user_email: 'admin@responsivcode.com',
   date_format: 'F j, Y',
@@ -58,6 +59,7 @@ function FieldSelect({
 }
 
 export function SettingsPage() {
+  const { apiConnected } = useAuth()
   const [form, setForm] = useState<AppSettings>(loadLocalSettings)
   const [password, setPassword] = useState({
     current_password: '',
@@ -92,11 +94,10 @@ export function SettingsPage() {
 
     try {
       await saveSettings(form)
+      setStatus('Settings saved to Laravel.')
     } catch {
-      // Settings remain saved in this browser if the API is offline.
+      setStatus('Settings saved locally in this browser.')
     }
-
-    setStatus('Settings saved.')
     setSaving(false)
   }
 
@@ -131,7 +132,11 @@ export function SettingsPage() {
     <div>
       <PageHeader
         title="Settings"
-        description="Company, user, and document settings. Saved through the Laravel API when it is available."
+        description={
+          apiConnected
+            ? 'Connected to Laravel API.'
+            : 'Laravel API offline — settings save locally in this browser.'
+        }
       />
 
       {status && <p className="mb-4 text-sm text-success-text">{status}</p>}

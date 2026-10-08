@@ -1,4 +1,5 @@
 import { PageHeader } from '@/components/layout/PageHeader'
+import { AddButton } from '@/components/ui/add-button'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -16,7 +17,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 export function InventoryReportsPage() {
-  const { movements, outslips, createDeliveryReceiptFromOutslip } = useErp()
+  const { movements, outslips, gatePasses, createDeliveryReceiptFromOutslip } = useErp()
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [message, setMessage] = useState<string | null>(null)
@@ -58,6 +59,7 @@ export function InventoryReportsPage() {
       <PageHeader
         title="Inventory & Reports"
         description="Current stock and inventory records from released outslips, on one page."
+        action={<AddButton label="Add Inventory" />}
       />
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -164,15 +166,28 @@ export function InventoryReportsPage() {
                   )}
                 </TableCell>
                 <TableCell>
-                  {outslip?.status === 'released' && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => handleCreateDeliveryReceipt(outslip.id)}
-                    >
-                      Create DR
-                    </Button>
-                  )}
+                  {outslip?.status === 'released' &&
+                    (gatePasses.some(
+                      (row) => row.outslipId === outslip.id && row.status === 'approved',
+                    ) ? (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleCreateDeliveryReceipt(outslip.id)}
+                      >
+                        Create DR
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() =>
+                          navigate(`/gate-passes?from=${encodeURIComponent(outslip.id)}`)
+                        }
+                      >
+                        Create Gate Pass
+                      </Button>
+                    ))}
                 </TableCell>
               </TableRow>
             )

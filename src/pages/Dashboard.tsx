@@ -1,4 +1,3 @@
-import { PageHeader } from '@/components/layout/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -7,101 +6,175 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableLink,
   TableRow,
 } from '@/components/ui/table'
+import { getStockLevels, useErp } from '@/data/erpStore'
+import type { QuotationStatus } from '@/data/quotationTypes'
 import {
-  AlertCircle,
+  formatCurrency,
+  initialQuotations,
+  loadQuotations,
+} from '@/lib/quotations'
+import {
   ClipboardList,
   FileText,
   Package,
   ShoppingCart,
 } from 'lucide-react'
-
-const stats = [
-  {
-    label: 'Pending Quotations',
-    value: '8',
-    change: '+3 from last week',
-    icon: FileText,
-  },
-  {
-    label: 'Open Purchase Orders',
-    value: '5',
-    change: '+1 from last week',
-    icon: ShoppingCart,
-  },
-  {
-    label: 'Pending Outslips',
-    value: '2',
-    change: 'Awaiting release',
-    icon: ClipboardList,
-  },
-  {
-    label: 'Inventory items',
-    value: '2',
-    change: 'See Inventory & Reports',
-    icon: Package,
-  },
-]
-
-const recentTransactions = [
-  {
-    id: 'QTN-00001',
-    type: 'Quotation',
-    customer: 'ABC Corporation',
-    amount: '₱400,000',
-    status: 'pending' as const,
-  },
-  {
-    id: 'PO-000123',
-    type: 'Purchase Order',
-    customer: 'ABC Corporation',
-    amount: '₱400,000',
-    status: 'approved' as const,
-  },
-  {
-    id: 'OS-000123',
-    type: 'Outslip',
-    customer: 'ABC Corporation',
-    amount: '—',
-    status: 'draft' as const,
-  },
-  {
-    id: 'QTN-00002',
-    type: 'Quotation',
-    customer: 'XYZ Industries',
-    amount: '₱250,000',
-    status: 'draft' as const,
-  },
-]
-
-const needsAttention = [
-  'Approved PO-000123 is ready for Create Outslip',
-  'Release outslips to post inventory records',
-  'Create Delivery Receipt after Inventory & Reports',
-]
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 
 const statusBadge = {
   approved: 'approved' as const,
   pending: 'pending' as const,
   draft: 'draft' as const,
+  rejected: 'rejected' as const,
+  completed: 'completed' as const,
 }
 
 const statusLabel = {
   approved: 'Approved',
   pending: 'Pending',
   draft: 'Draft',
+  rejected: 'Rejected',
+  completed: 'Completed',
+}
+
+function parseDisplayDate(value: string): number {
+  const iso = Date.parse(`${value}T00:00:00`)
+  if (!Number.isNaN(iso)) return iso
+  const parsed = Date.parse(value)
+  return Number.isNaN(parsed) ? 0 : parsed
 }
 
 export function DashboardPage() {
+  const { purchaseOrders, outslips, movements, gatePasses } = useErp()
+  const [quotations, setQuotations] = useState(() =>
+    loadQuotations(initialQuotations),
+  )
+
+  useEffect(() => {
+    function refreshQuotations() {
+      setQuotations(loadQuotations(initialQuotations))
+    }
+
+    refreshQuotations()
+    window.addEventListener('erp-quotations-updated', refreshQuotations)
+    window.addEventListener('storage', refreshQuotations)
+    window.addEventListener('focus', refreshQuotations)
+
+    return () => {
+      window.removeEventListener('erp-quotations-updated', refreshQuotations)
+      window.removeEventListener('storage', refreshQuotations)
+      window.removeEventListener('focus', refreshQuotations)
+    }
+  }, [])
+
+  const pendingQuotations = quotations.filter(
+    (quotation) => quotation.status === 'pending',
+  ).length
+
+  const openPurchaseOrders = purchaseOrders.filter(
+    (po) => po.status === 'approved' && !po.receivingId,
+  ).length
+
+  const pendingOutslips = outslips.filter(
+    (outslip) => outslip.status !== 'released',
+  ).length
+
+  const inventoryItemCount = getStockLevels(movements).length
+
+  const stats = [
+    {
+      label: 'Pending Quotations',
+      value: String(pendingQuotations),
+      change: `${quotations.length} total quotation${quotations.length === 1 ? '' : 's'}`,
+      icon: FileText,
+    },
+    {
+      label: 'Open Purchase Orders',
+      value: String(openPurchaseOrders),
+      change: `${purchaseOrders.length} total purchase order${purchaseOrders.length === 1 ? '' : 's'}`,
+      icon: ShoppingCart,
+    },
+    {
+      label: 'Pending Outslips',
+      value: String(pendingOutslips),
+      change:
+        pendingOutslips > 0 ? 'Awaiting release' : 'No pending outslips',
+      icon: ClipboardList,
+    },
+    {
+      label: 'Inventory items',
+      value: String(inventoryItemCount),
+      change: 'See Inventory & Reports',
+      icon: Package,
+    },
+  ]
+
+  const recentTransactions = useMemo(() => {
+    type RowStatus = QuotationStatus | 'approved' | 'pending' | 'draft' | 'completed'
+
+    const rows: Array<{
+      id: string
+      type: string
+      customer: string
+      amount: string
+      status: RowStatus
+      sortDate: number
+      link: string
+    }> = [
+      ...quotations.map((quotation) => ({
+        id: quotation.quotationNo,
+        type: 'Quotation',
+        customer: quotation.customerName,
+        amount: formatCurrency(quotation.total),
+        status: quotation.status,
+        sortDate: parseDisplayDate(quotation.date),
+        link: '/quotations',
+      })),
+      ...purchaseOrders.map((po) => ({
+        id: po.poNo,
+        type: 'Purchase Order',
+        customer: po.supplier,
+        amount: formatCurrency(po.amount),
+        status: po.status,
+        sortDate: parseDisplayDate(po.date),
+        link: '/purchase-orders',
+      })),
+      ...outslips.map((outslip) => ({
+        id: outslip.id,
+        type: 'Outslip',
+        customer: outslip.customer,
+        amount: '—',
+        status:
+          outslip.status === 'released' || outslip.status === 'approved'
+            ? ('approved' as const)
+            : outslip.status === 'pending'
+              ? ('pending' as const)
+              : ('draft' as const),
+        sortDate: parseDisplayDate(outslip.date),
+        link: '/outslips',
+      })),
+      ...gatePasses.map((gatePass) => ({
+        id: gatePass.id,
+        type: 'Gate Pass',
+        customer: gatePass.customer,
+        amount: '—',
+        status:
+          gatePass.status === 'approved' ? ('approved' as const) : ('draft' as const),
+        sortDate: parseDisplayDate(gatePass.date),
+        link: '/gate-passes',
+      })),
+    ]
+
+    return rows
+      .sort((a, b) => b.sortDate - a.sortDate)
+      .slice(0, 5)
+  }, [quotations, purchaseOrders, outslips, gatePasses])
+
   return (
     <div>
-      <PageHeader
-        title="Dashboard"
-        description="Overview of current transactions."
-      />
-
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <Card key={stat.label}>
@@ -123,26 +196,37 @@ export function DashboardPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <h2 className="mb-3 text-base font-semibold text-text-primary">
-            Recent Transactions
-          </h2>
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Document No.</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
+      <div>
+        <h2 className="mb-3 text-base font-semibold text-text-primary">
+          Recent Transactions
+        </h2>
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead>Document No.</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {recentTransactions.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-text-secondary">
+                  No transactions yet.
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recentTransactions.map((tx) => (
-                <TableRow key={tx.id}>
+            ) : (
+              recentTransactions.map((tx) => (
+                <TableRow key={`${tx.type}-${tx.id}`}>
                   <TableCell>
-                    <TableLink>{tx.id}</TableLink>
+                    <Link
+                      to={tx.link}
+                      className="font-medium text-maroon hover:text-maroon-dark"
+                    >
+                      {tx.id}
+                    </Link>
                   </TableCell>
                   <TableCell>{tx.type}</TableCell>
                   <TableCell>{tx.customer}</TableCell>
@@ -153,28 +237,10 @@ export function DashboardPage() {
                     </Badge>
                   </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-
-        <div>
-          <h2 className="mb-3 text-base font-semibold text-text-primary">
-            Needs Attention
-          </h2>
-          <Card>
-            <CardContent className="pt-4">
-              <ul className="space-y-3">
-                {needsAttention.map((item) => (
-                  <li key={item} className="flex items-start gap-2 text-sm text-text-primary">
-                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-maroon" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        </div>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
     </div>
   )

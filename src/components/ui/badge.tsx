@@ -7,7 +7,12 @@ type BadgeVariant =
   | 'rejected'
   | 'draft'
   | 'released'
+  | 'completed'
+  | 'cancelled'
   | 'current'
+  | 'active'
+  | 'out_for_delivery'
+  | 'partially_delivered'
   | 'default'
 
 interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
@@ -17,10 +22,15 @@ interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 const variantStyles: Record<BadgeVariant, string> = {
   approved: 'bg-[#DCFCE7] text-[#15803D]',
   pending: 'bg-[#FEF3C7] text-[#B45309]',
+  completed: 'bg-[#DCFCE7] text-[#15803D]',
   rejected: 'bg-[#FEE2E2] text-[#DC2626]',
+  cancelled: 'bg-[#FEE2E2] text-[#B91C1C]',
   draft: 'bg-draft text-text-secondary',
-  released: 'bg-[#DBEAFE] text-[#1D4ED8]',
+  released: 'bg-maroon-light text-maroon',
   current: 'bg-maroon-light text-maroon',
+  active: 'bg-[#DBEAFE] text-[#1D4ED8]',
+  out_for_delivery: 'bg-[#FEF3C7] text-[#B45309]',
+  partially_delivered: 'bg-[#FEF3C7] text-[#B45309]',
   default: 'bg-draft text-text-secondary',
 }
 

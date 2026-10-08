@@ -3,8 +3,8 @@ import { type HTMLAttributes, type TdHTMLAttributes, type ThHTMLAttributes } fro
 
 export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="w-full overflow-auto rounded-lg border border-border bg-surface">
-      <table className={cn('w-full caption-bottom text-sm', className)} {...props} />
+    <div className="w-full max-w-full overflow-x-auto rounded-lg border border-border bg-surface">
+      <table className={cn('w-full min-w-[36rem] caption-bottom text-sm', className)} {...props} />
     </div>
   )
 }
