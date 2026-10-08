@@ -4,10 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "npm run dev --prefix frontend",
+    "dev:legacy-gui": "vite",
+    "dev:api": "powershell -ExecutionPolicy Bypass -File scripts/start-shared-api.ps1",
+    "dev:all": "powershell -ExecutionPolicy Bypass -File scripts/start-dev.ps1",
+    "build": "npm run build --prefix frontend",
+    "build:legacy-gui": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "npm run preview --prefix frontend"
   },
   "dependencies": {
     "clsx": "^2.1.1",

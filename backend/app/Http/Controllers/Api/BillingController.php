@@ -1,0 +1,152 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Http\Resources\TransactionPresenter;
+use App\Models\Billing;
+use App\Models\BillingPayment;
+use App\Models\CustomerLedger;
+use App\Models\DeliveryReceipt;
+use App\Support\DocumentNumber;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
+class BillingController extends Controller
+{
+    public function index(): JsonResponse
+    {
+        $rows = Billing::query()
+            ->with(['payments', 'delivery'])
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn (Billing $billing) => TransactionPresenter::billing($billing));
+
+        return response()->json(['data' => $rows]);
+    }
+
+    public function show(string $id): JsonResponse
+    {
+        return response()->json([
+            'data' => TransactionPresenter::billing($this->findBilling($id)),
+        ]);
+    }
+
+    public function store(Request $request): JsonResponse
+    {
+        $payload = $request->validate([
+            'deliveryId' => ['required', 'integer', 'exists:delivery_main,id'],
+            'date' => ['nullable', 'date'],
+        ]);
+
+        $delivery = DeliveryReceipt::query()->findOrFail($payload['deliveryId']);
+
+        if (strtoupper((string) $delivery->status) !== 'DELIVERED') {
+            return response()->json([
+                'message' => 'Only delivered delivery receipts can be billed.',
+            ], 422);
+        }
+
+        if (Billing::query()->where('delivery_id', $delivery->id)->exists()) {
+            return response()->json([
+                'message' => 'A billing statement already exists for this delivery receipt.',
+            ], 422);
+        }
+
+        $user = $request->attributes->get('auth_user');
+
+        $billing = DB::transaction(function () use ($payload, $delivery, $user) {
+            $latest = Billing::query()->orderByDesc('id')->value('billing_no');
+
+            $billing = Billing::query()->create([
+                'delivery_id' => $delivery->id,
+                'billing_no' => DocumentNumber::next('BS-', $latest),
+                'billing_date' => $payload['date'] ?? now()->toDateString(),
+                'customer_id' => $delivery->customer_id,
+                'customer_name' => $delivery->customer_name,
+                'billing_total' => (float) $delivery->dr_total,
+                'paid_amount' => 0,
+                'prepared_by' => $user?->id ?? 0,
+                'status' => 'ACTIVE',
+            ]);
+
+            CustomerLedger::query()->create([
+                'customer_id' => $delivery->customer_id,
+                'outslip_id' => (int) ($delivery->outslip_id ?? 0),
+                'debit' => (float) $delivery->dr_total,
+                'credit' => 0,
+            ]);
+
+            return $billing->load(['payments', 'delivery']);
+        });
+
+        return response()->json([
+            'message' => 'Billing statement created successfully.',
+            'data' => TransactionPresenter::billing($billing),
+        ], 201);
+    }
+
+    public function recordPayment(Request $request, string $id): JsonResponse
+    {
+        $payload = $request->validate([
+            'amount' => ['required', 'numeric', 'gt:0'],
+            'date' => ['nullable', 'date'],
+            'reference' => ['nullable', 'string', 'max:100'],
+            'remarks' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $billing = $this->findBilling($id);
+        $total = (float) $billing->billing_total;
+        $paid = (float) ($billing->paid_amount ?? 0);
+        $remaining = max(0, $total - $paid);
+        $amount = (float) $payload['amount'];
+
+        if ($amount > $remaining + 0.0001) {
+            return response()->json([
+                'message' => 'Payment exceeds the remaining balance.',
+            ], 422);
+        }
+
+        $billing = DB::transaction(function () use ($billing, $payload, $amount) {
+            $latest = BillingPayment::query()->orderByDesc('id')->value('payment_no');
+
+            BillingPayment::query()->create([
+                'billing_id' => $billing->id,
+                'payment_no' => DocumentNumber::next('PAY-', $latest),
+                'payment_date' => $payload['date'] ?? now()->toDateString(),
+                'amount' => $amount,
+                'reference' => $payload['reference'] ?? null,
+                'remarks' => $payload['remarks'] ?? null,
+            ]);
+
+            $billing->paid_amount = (float) ($billing->paid_amount ?? 0) + $amount;
+            $billing->save();
+
+            CustomerLedger::query()->create([
+                'customer_id' => $billing->customer_id,
+                'outslip_id' => (int) ($billing->delivery?->outslip_id ?? 0),
+                'debit' => 0,
+                'credit' => $amount,
+            ]);
+
+            return $billing->fresh(['payments', 'delivery']);
+        });
+
+        return response()->json([
+            'message' => 'Payment recorded successfully.',
+            'data' => TransactionPresenter::billing($billing),
+        ]);
+    }
+
+    private function findBilling(string $id): Billing
+    {
+        $query = Billing::query()->with(['payments', 'delivery']);
+
+        if (is_numeric($id)) {
+            return $query->findOrFail((int) $id);
+        }
+
+        return $query->where('billing_no', $id)->firstOrFail();
+    }
+}

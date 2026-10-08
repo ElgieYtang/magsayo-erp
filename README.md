@@ -1,78 +1,74 @@
-# ResponsivCode ERP (RTS ERP System)
+# Magsayo ERP — full stack (web + mobile + API)
 
-Modern ERP frontend for ResponsivCode — quotation-to-accomplishment workflow with a professional maroon + white design system.
+One Laravel API and MySQL database power **both** the office web app and the Flutter field app.
 
-## Workflow
+## Layout
 
-`Quotation → Purchase Order → Receiving → Inventory → Outslip → Delivery Receipt → Billing → SOA → Accomplishment Report`
+| Folder | Role |
+|--------|------|
+| **`backend/`** | Laravel API (`/api/*`) — quotations through accomplishments, gate pass, DR serials |
+| **`frontend/`** | Office web (React + Vite) — uses the same API as mobile |
+| **`mobile/`** | Flutter field app — same API, no layout changes |
+| **`src/`** | Legacy TypeScript UI (browser `localStorage`) — **not** used for shared data; use **`frontend/`** |
+| **`laravel/`** | Old Sanctum shell — **not** used when running the full package |
 
-## Tech Stack
+## Quick start (Windows)
 
-- React 19 + TypeScript
-- Vite
-- Tailwind CSS v4
-- React Router
-- Lucide React (icons)
+### 1. Database
 
-## Getting Started
+Create MySQL database **`rts_system`** (WAMP/phpMyAdmin). Import your data or run migrations.
 
-### Prerequisites
+### 2. API
 
-- Node.js 18+ (Node 20+ recommended)
-- npm
-
-### Clone & install
-
-```bash
-git clone https://github.com/ElgieYtang/RTS_ERP_System.git
-cd RTS_ERP_System
-npm install
+```powershell
+cd "C:\magsayo erp\backend"
+copy .env.example .env
+# Edit .env: DB_*, then:
+composer install
+php artisan key:generate
+php artisan migrate
+php artisan serve --host=0.0.0.0 --port=8000
 ```
 
-### Run locally
+Check: [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/health)
 
-```bash
+### 3. Web
+
+```powershell
+cd "C:\magsayo erp\frontend"
+npm install
 npm run dev
 ```
 
-Open the URL shown in the terminal (usually `http://localhost:5173`).
+Open [http://localhost:5173](http://localhost:5173). Vite proxies `/api` → port 8000.
 
-### Build for production
+Login: **`login`** field (e.g. `admin` / `p@ssw0rd` from `setup_users`).
 
-```bash
-npm run build
-npm run preview
+### 4. Mobile
+
+```powershell
+cd "C:\magsayo erp\mobile"
+flutter pub get
+flutter run
 ```
 
-## Project Structure
+Emulator API: `http://10.0.2.2:8000/api` (default). Phone: `flutter run --dart-define=API_BASE_URL=http://YOUR-PC-IP:8000/api`
 
-```
-src/
-  components/
-    layout/     # Sidebar, Header, AppLayout, PageHeader
-    ui/         # Button, Badge, Card, Table, Input
-    workflow/   # WorkflowTracker
-  config/
-    navigation.ts
-  pages/        # Dashboard, Quotations, module placeholders
-  lib/
-    theme.ts    # Color tokens
-    utils.ts
+### One script (API + web)
+
+```powershell
+cd "C:\magsayo erp"
+powershell -File scripts\start-dev.ps1
 ```
 
-## Design System
+## How sync works
 
-| Token | Color | Usage |
-|-------|-------|-------|
-| Primary Maroon | `#8B1E3F` | Sidebar, primary buttons, active accents |
-| Dark Maroon | `#6F1832` | Hover states |
-| Light Maroon | `#F8E9EE` | Active nav, row hover, workflow accents |
-| Page Background | `#F7F7F8` | Main content area |
-| Surface | `#FFFFFF` | Cards, tables, forms |
-| Text Primary | `#252525` | Titles, body text |
-| Text Secondary | `#6B7280` | Descriptions, metadata |
+- Web **`frontend/`** loads and saves transactions through **`backend/`**.
+- **Mobile** uses the same endpoints and presenters (`TransactionPresenter` camelCase JSON).
+- Change a DR on web → refresh mobile (or reopen list) → same data from MySQL.
 
-## Team Notes
+## Optional SQL
 
-- `node_modules` and `dist` are not committed — run `npm install` after cloning.
-- Use feature branches for new modules; keep `main` stable for the team.
+`backend/docs/sql/add_item_barcode.sql` — item barcodes for DR scanning.
+
+See also `docs/MOBILE_AND_WEB.md`.
