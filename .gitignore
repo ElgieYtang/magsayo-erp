@@ -12,6 +12,19 @@ dist
 dist-ssr
 *.local
 
+# Secrets and local DB dumps (use scripts/export-database.ps1 locally)
+backend/.env
+backend/database/dumps/*.sql
+!backend/database/dumps/README.md
+
+# Flutter / Android local
+mobile/.dart_tool/
+mobile/build/
+mobile/android/local.properties
+mobile/android/.gradle/
+backend/vendor/
+frontend/node_modules/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

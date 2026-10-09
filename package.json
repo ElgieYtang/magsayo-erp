@@ -8,6 +8,8 @@
     "dev:legacy-gui": "vite",
     "dev:api": "powershell -ExecutionPolicy Bypass -File scripts/start-shared-api.ps1",
     "dev:all": "powershell -ExecutionPolicy Bypass -File scripts/start-dev.ps1",
+    "bootstrap": "powershell -ExecutionPolicy Bypass -File scripts/bootstrap.ps1",
+    "smoke": "powershell -ExecutionPolicy Bypass -File scripts/smoke-test.ps1",
     "build": "npm run build --prefix frontend",
     "build:legacy-gui": "tsc -b && vite build",
     "lint": "oxlint",

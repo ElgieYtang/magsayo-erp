@@ -6,6 +6,8 @@
 - **Web:** `frontend/` — React app wired to `/api` (same as `erp-system` office app)
 - **Mobile:** `mobile/` — Flutter app, same routes and `{ data }` JSON shape
 
+**Setup:** from repo root run `npm run bootstrap`, then `npm run dev:all`.
+
 ## Not shared
 
 - **`src/`** (root TypeScript app) still stores transactions in **localStorage**. It does not read MySQL. Use **`npm run dev`** (frontend) for production-style workflows.

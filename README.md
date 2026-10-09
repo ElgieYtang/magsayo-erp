@@ -2,73 +2,63 @@
 
 One Laravel API and MySQL database power **both** the office web app and the Flutter field app.
 
-## Layout
+## What to use (only this for real data)
 
 | Folder | Role |
 |--------|------|
-| **`backend/`** | Laravel API (`/api/*`) — quotations through accomplishments, gate pass, DR serials |
-| **`frontend/`** | Office web (React + Vite) — uses the same API as mobile |
-| **`mobile/`** | Flutter field app — same API, no layout changes |
-| **`src/`** | Legacy TypeScript UI (browser `localStorage`) — **not** used for shared data; use **`frontend/`** |
-| **`laravel/`** | Old Sanctum shell — **not** used when running the full package |
+| **`backend/`** | Laravel API (`/api/*`) — **run this on port 8000** |
+| **`frontend/`** | Office web — `npm run dev` |
+| **`mobile/`** | Flutter field app |
 
-## Quick start (Windows)
+**Do not use for shared data:** root **`src/`** (localStorage), **`laravel/`** (old API). See `src/LEGACY_README.md` and `laravel/README.md`.
 
-### 1. Database
-
-Create MySQL database **`rts_system`** (WAMP/phpMyAdmin). Import your data or run migrations.
-
-### 2. API
-
-```powershell
-cd "C:\magsayo erp\backend"
-copy .env.example .env
-# Edit .env: DB_*, then:
-composer install
-php artisan key:generate
-php artisan migrate
-php artisan serve --host=0.0.0.0 --port=8000
-```
-
-Check: [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/health)
-
-### 3. Web
-
-```powershell
-cd "C:\magsayo erp\frontend"
-npm install
-npm run dev
-```
-
-Open [http://localhost:5173](http://localhost:5173). Vite proxies `/api` → port 8000.
-
-Login: **`login`** field (e.g. `admin` / `p@ssw0rd` from `setup_users`).
-
-### 4. Mobile
-
-```powershell
-cd "C:\magsayo erp\mobile"
-flutter pub get
-flutter run
-```
-
-Emulator API: `http://10.0.2.2:8000/api` (default). Phone: `flutter run --dart-define=API_BASE_URL=http://YOUR-PC-IP:8000/api`
-
-### One script (API + web)
+## First-time setup (Windows)
 
 ```powershell
 cd "C:\magsayo erp"
-powershell -File scripts\start-dev.ps1
+npm run bootstrap
 ```
 
-## How sync works
+Then:
 
-- Web **`frontend/`** loads and saves transactions through **`backend/`**.
-- **Mobile** uses the same endpoints and presenters (`TransactionPresenter` camelCase JSON).
-- Change a DR on web → refresh mobile (or reopen list) → same data from MySQL.
+1. **WAMP** — MySQL on; database **`rts_system`** (empty? Import `backend\database\dumps\rts_system.sql` in phpMyAdmin).
+2. **Run everything:**
+   ```powershell
+   npm run dev:all
+   ```
+3. **Mobile** (separate terminal):
+   ```powershell
+   cd mobile
+   flutter run
+   ```
+4. **Verify API:**
+   ```powershell
+   npm run smoke
+   ```
 
-## Optional SQL
+- Web: http://localhost:5173 — login field **`login`** (e.g. `admin`).
+- API health: http://127.0.0.1:8000/api/health
+- Mobile emulator API: `http://10.0.2.2:8000/api`
 
-`backend/docs/sql/add_item_barcode.sql` — item barcodes for DR scanning.
+## Database
 
-See also `docs/MOBILE_AND_WEB.md`.
+- **Live data:** MySQL **`rts_system`** (`backend/.env`).
+- **Backup file:** `backend/database/dumps/rts_system.sql` — re-export with `scripts\export-database.ps1`.
+- **Not** `backend/database/database.sqlite` (Laravel default only).
+
+## How web and mobile stay in sync
+
+Both call **`backend/`** → same MySQL. Change a record on web; refresh on mobile.
+
+## Docs
+
+| Doc | Purpose |
+|-----|---------|
+| `docs/MOBILE_AND_WEB.md` | Architecture |
+| `docs/DEPLOYMENT.md` | Production |
+| `docs/QA_CHECKLIST.md` | Manual QA |
+| `backend/docs/sql/add_item_barcode.sql` | DR product barcode column |
+
+## Git remotes
+
+Push target: **https://github.com/ElgieYtang/magsayo-erp** (`git remote add magsayo-erp …` if needed).

@@ -29,9 +29,10 @@ Route::middleware(AuthenticateApiToken::class)->group(function () {
     Route::put('/settings/password', [SettingsController::class, 'updatePassword']);
 
     Route::get('/setup/items/by-barcode/{barcode}', [SetupController::class, 'showItemByBarcode']);
+    // Staff + mobile can read setup lists; writes stay admin-only.
+    Route::get('/setup/{resource}', [SetupController::class, 'index']);
 
     Route::prefix('setup')->middleware(EnsureAdmin::class)->group(function () {
-        Route::get('/{resource}', [SetupController::class, 'index']);
         Route::post('/{resource}', [SetupController::class, 'store']);
         Route::put('/{resource}/{id}', [SetupController::class, 'update']);
         Route::delete('/{resource}/{id}', [SetupController::class, 'destroy']);
